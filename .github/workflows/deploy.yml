@@ -38,21 +38,28 @@ jobs:
             -t employee:$IMAGE_TAG \
             -t employee:$BRANCH-latest .
 
+      # The self-hosted runners share ci-server (one home folder, one Docker daemon) with other
+      # repos' jobs. Keep the key and known_hosts in this job's temp folder, and only remove
+      # images this workflow built: never prune containers, images or volumes machine-wide.
       - name: Deploy to servers
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          mkdir -p ~/.ssh/employee
-          printf "%s\n" "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/employee/id_rsa
-          chmod 600 ~/.ssh/employee/id_rsa
+          set -euo pipefail
+          ssh_dir="$RUNNER_TEMP/employee-ssh-$GITHUB_RUN_ID"
+          install -m 700 -d "$ssh_dir"
+          install -m 600 /dev/null "$ssh_dir/id_rsa"
+          printf "%s\n" "$SSH_PRIVATE_KEY" > "$ssh_dir/id_rsa"
+          ssh-keyscan -H "$SERVER_IP" > "$ssh_dir/known_hosts"
+          ssh_opts=(-i "$ssh_dir/id_rsa" -o IdentitiesOnly=yes -o UserKnownHostsFile="$ssh_dir/known_hosts")
 
           docker save -o employee.tar employee:$IMAGE_TAG employee:$BRANCH-latest
 
           echo "Deploying to $SERVER_IP"
 
-          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+          scp "${ssh_opts[@]}" employee.tar ubuntu@$SERVER_IP:/tmp
 
-          scp -i ~/.ssh/employee/id_rsa employee.tar ubuntu@$SERVER_IP:/tmp
-
-          ssh -i ~/.ssh/employee/id_rsa ubuntu@$SERVER_IP <<EOF
+          ssh "${ssh_opts[@]}" ubuntu@$SERVER_IP <<EOF
 
 
             docker images -q --filter "reference=employee" | xargs -r docker rmi -f
@@ -62,15 +69,17 @@ jobs:
 
             docker run -d --restart=always -p ${{ env.API_PORT }}:8000 -p ${{ env.ADMIN_PORT }}:3000 --name employee-${{ env.BRANCH }} employee:${{ env.BRANCH }}-latest
 
-            docker image prune -a -f
+            # Dangling images only: this server may host other apps whose unused images
+            # (e.g. rollback builds) must stay.
+            docker image prune -f
 
             rm -f /tmp/employee.tar
           EOF
 
-          rm -f ~/.ssh/employee/id_rsa
-          rm -f employee.tar
-
-          docker images -q --filter "dangling=true" | xargs -r docker rmi -f
-          docker images -q --filter "reference=employee" | xargs -r docker rmi -f
-          docker container prune -f
-          docker volume ls -q --filter dangling=true | xargs -r docker volume rm -f
+      - name: Clean up runner
+        if: always()
+        run: |
+          rm -rf "$RUNNER_TEMP/employee-ssh-$GITHUB_RUN_ID" employee.tar
+          # Only this repo's images. No -f: an image in use is skipped.
+          docker images employee --format '{{.Repository}}:{{.Tag}}' | xargs -r docker rmi || true
+          docker image prune -f > /dev/null || true
