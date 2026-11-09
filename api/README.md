@@ -71,7 +71,7 @@ make install
 ```
 
 2. Set up the database:
-   - Create a PostgreSQL database named `employee-test`
+   - Create a PostgreSQL database named `employee-test`, or run `docker compose up -d db` from the repo root (Postgres on `localhost:20060`)
    - Update the `.env` file with your database credentials
 
 3. Configure environment variables:
@@ -190,3 +190,19 @@ For development, the application includes:
 - Pydantic models for request/response validation
 - Comprehensive error handling
 - Security best practices
+
+## Local ports
+
+Each XynoLab project has its own ports, so several projects can run at the same time.
+
+| What | Port |
+| --- | --- |
+| API | 8000 (unchanged) |
+| Admin | 3060 |
+| Postgres | 20060 |
+
+**After pulling the port change (2026-11-09):**
+
+1. In `api/.env`, change the port in `DATABASE_URL` from `5432` to `20060`.
+2. Run `docker compose up -d db` from the repo root so Postgres moves to 20060. Data is kept in the `employeeDB` volume.
+3. The admin panel now runs on http://localhost:3060 (set `PORT=3060` in `admin/.env`).

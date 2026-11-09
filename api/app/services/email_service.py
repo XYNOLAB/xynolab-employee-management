@@ -213,7 +213,7 @@ async def send_employee_invitation(to_email: str, token: str):
     subject = "Employee Invitation - Join Our Team"
     
     # You'll need to replace this URL with your actual frontend URL
-    invitation_link = f"http://localhost:3000/invitation/accept?token={token}"
+    invitation_link = f"http://localhost:3060/invitation/accept?token={token}"
     
     html_template = Template("""
     <html>
