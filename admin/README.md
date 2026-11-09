@@ -80,7 +80,7 @@ Before running this application, ensure you have:
    ```
 
 5. **Open your browser:**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+   Navigate to [http://localhost:3060](http://localhost:3060)
 
 ## 🔧 Available Scripts
 
@@ -190,7 +190,7 @@ The application integrates with the Employee Management API with the following e
 
 3. **Access the application:**
 
-   - Navigate to [http://localhost:3000](http://localhost:3000)
+   - Navigate to [http://localhost:3060](http://localhost:3060)
    - You'll be redirected to the login page
 
 4. **Login with credentials:**
@@ -210,3 +210,16 @@ For issues and questions:
 ---
 
 Built with ❤️ using Next.js, TypeScript, and Tailwind CSS
+
+## Local ports
+
+Each XynoLab project has its own ports, so several projects can run at the same time.
+
+| What | Port |
+| --- | --- |
+| Admin | 3060 |
+| API | 8000 |
+
+**After pulling the port change (2026-11-09):**
+
+1. Add `PORT=3060` to `admin/.env` (see `.env.example`); `pnpm dev` reads it from there. Without it, Next.js falls back to 3000, which other projects use. Open http://localhost:3060. Database steps are in `../api/README.md`.
